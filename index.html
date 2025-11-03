@@ -91,11 +91,13 @@ button.export { background: var(--accent); }
   background:#ddd;
   height:16px;
   border-radius:8px;
+  border: 1px solid #bbb; /* ✅ 新增邊框，讓0%仍可見 */
   overflow:hidden;
 }
 .progress-fill {
   height:100%; width:0;
   background:var(--accent);
+  min-width:4px; /* ✅ 永遠保留可見最小寬度 */
   transition: width 0.4s ease, background 0.4s ease;
 }
 .progress-label { text-align:right; font-size:0.85rem; margin-top:0.3rem; }
@@ -256,18 +258,14 @@ document.getElementById("save").onclick=saveData;
 document.getElementById("clear").onclick=clearData;
 loadData();
 
-// 📊 進度條（修正版）
+// 📊 進度條（最終修正版）
 function updateProgress(){
   const now = new Date();
   let total = 0, done = 0;
-
-  // 重新生成固定的7天日期範圍（不依 schedule 本身）
   for (let i = 0; i < 7; i++) {
     const d = new Date(now);
     d.setDate(now.getDate() - i);
     const dateKey = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
-
-    // 嘗試最多 10 個時段（避免不同日子 schedule 長度不同時出錯）
     for (let idx = 0; idx < 10; idx++) {
       const doneKey = localStorage.getItem(dateKey + "_c" + idx);
       if (doneKey !== null) {
@@ -276,18 +274,12 @@ function updateProgress(){
       }
     }
   }
-
   const per = total ? Math.round(done / total * 100) : 0;
   const fill = document.getElementById("pfill");
   const lbl = document.getElementById("plabel");
-
   if (fill && lbl) {
     fill.style.width = per + "%";
-    fill.style.minWidth = "4px";   // 即使 0% 時仍可見
-    fill.style.background = 
-      per < 50 ? "#ff4d4d" :
-      per < 80 ? "#ffc107" :
-      "var(--accent)";
+    fill.style.background = per < 50 ? "#ff4d4d" : per < 80 ? "#ffc107" : "var(--accent)";
     lbl.innerText = per + "%";
   }
 }
