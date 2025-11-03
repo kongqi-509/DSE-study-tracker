@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>DSE每日學習打卡</title>
+
+<style>
+:root {
+  --primary: #0052cc;
+  --bg: #f4f7ff;
+  --text: #222;
+  --panel: #fff;
+  --accent: #4caf50;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --primary: #4a90e2;
+    --bg: #1e1e1e;
+    --text: #f0f0f0;
+    --panel: #2a2a2a;
+    --accent: #00cc66;
+  }
+}
+body {
+  font-family: "Noto Sans TC", sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  margin: 0;
+}
+header {
+  background: var(--primary);
+  color: white;
+  text-align: center;
+  padding: 1rem;
+}
+#clock { font-size: 1.2rem; margin-top: 0.3rem; font-weight: bold; }
+main {
+  background: var(--panel);
+  max-width: 750px;
+  margin: 1rem auto;
+  border-radius: 12px;
+  padding: 1rem;
+  box-shadow: 0 0 8px rgba(0,0,0,0.15);
+}
+h2 {
+  border-left: 6px solid var(--primary);
+  padding-left: 0.4rem;
+  font-size: 1rem;
+}
+#suggestion {
+  background: #e8f0ff;
+  padding: 0.8rem;
+  border-radius: 8px;
+  margin-bottom: 1rem;
+  font-size: 0.9rem;
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 0.5rem;
+}
+th, td {
+  border: 1px solid #ccc;
+  padding: 0.5rem;
+  text-align: center;
+}
+th { background: var(--primary); color: white; }
+td.school { background: #f0f0f0; color: #777; }
+.subject-input {
+  width: 100%; border: none; border-bottom: 1px solid #ccc;
+  background: transparent; text-align: center; font-size: 0.9rem; color: var(--text);
+}
+input[type=checkbox]{ transform: scale(1.3); }
+.buttons { text-align: center; margin: 1rem 0; }
+button {
+  background: var(--primary);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 0.6rem 1rem;
+  margin: 0.3rem;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+button.clear { background:#666; }
+button.export { background: var(--accent); }
+
+.progress-bar {
+  width:100%;
+  background:#ddd;
+  height:16px;
+  border-radius:8px;
+  overflow:hidden;
+}
+.progress-fill {
+  height:100%; width:0;
+  background:var(--accent);
+  transition: width 0.4s ease, background 0.4s ease;
+}
+.progress-label { text-align:right; font-size:0.85rem; margin-top:0.3rem; }
+
+.toast {
+  position:fixed;
+  bottom:20px;
+  left:50%;
+  transform:translateX(-50%);
+  background:var(--primary);
+  color:white;
+  padding:0.6rem 1rem;
+  border-radius:6px;
+  opacity:0;
+  transition:opacity 0.5s;
+  z-index:999;
+}
+.toast.show {opacity:1;}
+
+footer {
+  text-align:center;
+  font-size:0.8rem;
+  color:#888;
+  margin:1rem 0;
+}
+@media(max-width:600px){
+ table,th,td{font-size:0.8rem;}
+ h1{font-size:1.1rem;}
+}
+</style>
+</head>
+
+<body>
+<header>
+  <h1>📚 DSE 學習打卡系統</h1>
+  <div id="date"></div>
+  <div id="clock">--:--:--</div>
+</header>
+
+<main>
+  <h2>🧠 今日建議科目</h2>
+  <div id="suggestion">載入中...</div>
+
+  <h2>🗓️ 今日打卡</h2>
+  <table><thead>
+    <tr><th>時間</th><th>內容</th><th>完成</th></tr>
+  </thead><tbody id="scheduleBody"></tbody></table>
+
+  <div class="buttons">
+    <button id="save">💾 儲存今日紀錄</button>
+    <button id="clear" class="clear">🧹 清除</button>
+    <button id="export" class="export">📤 匯出本週報告</button>
+  </div>
+
+  <h2>📊 本週完成率</h2>
+  <div class="progress-bar"><div class="progress-fill" id="pfill"></div></div>
+  <div class="progress-label" id="plabel">0%</div>
+</main>
+
+<footer>© 2025 DSE Study Tracker</footer>
+<div class="toast" id="toast">✅ 已儲存！</div>
+
+<script>
+// 🕒 時鐘
+function updateClock(){
+  const n=new Date();
+  document.getElementById("clock").innerText=
+    n.toLocaleTimeString("zh-HK",{hour12:false});
+}
+setInterval(updateClock,1000); updateClock();
+
+// 📅 日期顯示
+const today=new Date();
+const week="日一二三四五六"[today.getDay()];
+document.getElementById("date").innerText=
+  `${today.getFullYear()}年${today.getMonth()+1}月${today.getDate()}日（星期${week}）`;
+
+// ✔️ keyPrefix
+const keyPrefix=`${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,"0")}-${String(today.getDate()).padStart(2,"0")}`;
+
+// 🎯 建議科目
+const plan={
+  1:{main:"中文",sub:"英文"},2:{main:"數學",sub:"化學"},
+  3:{main:"ICT",sub:"英文"},4:{main:"數學",sub:"中文"},
+  5:{main:"化學",sub:"ICT"},6:{main:"Past Paper 模擬",sub:"弱科重點"},
+  0:{main:"自由溫習／休息",sub:"錯題整理"}
+};
+const tp=plan[today.getDay()];
+document.getElementById("suggestion").innerHTML=
+  `💡 <b>主科：</b>${tp.main}<br>🧩 <b>副科：</b>${tp.sub}`;
+
+// ⏰ 時段
+const tbody=document.getElementById("scheduleBody");
+let schedule=[];
+if(today.getDay()>=1&&today.getDay()<=5){
+  schedule=[
+    {time:"08:00–16:30",school:true,label:"學校上課時間"},
+    {time:"17:00–18:00"},
+    {time:"18:00–19:30"},
+    {time:"19:30–21:00"},
+    {time:"21:00–22:30"}];
+}else{
+  schedule=[
+    {time:"09:00–10:30"},{time:"10:30–12:00"},
+    {time:"13:00–14:30"},{time:"14:30–16:00"},
+    {time:"16:00–17:30"},{time:"19:00–20:30"},
+    {time:"20:30–22:00"}];
+}
+
+schedule.forEach((s,i)=>{
+  const tr=document.createElement("tr");
+  if(s.school){
+    tr.innerHTML=`<td>${s.time}</td><td class="school">${s.label}</td><td>🏫</td>`;
+  }else{
+    tr.innerHTML=`
+      <td>${s.time}</td>
+      <td><input id="s${i}" class="subject-input" placeholder="學習內容"></td>
+      <td><input type="checkbox" id="c${i}"></td>`;
+  }
+  tbody.appendChild(tr);
+});
+const ids=schedule.filter(s=>!s.school)
+  .flatMap((_,i)=>["s"+i,"c"+i]);
+
+function toast(msg){
+  const el=document.getElementById("toast");
+  el.innerText=msg;
+  el.classList.add("show");
+  setTimeout(()=>el.classList.remove("show"),2000);
+}
+
+// 🧩 儲存 + 載入
+function saveData(){
+  ids.forEach(id=>{
+    const el=document.getElementById(id);
+    if(el) localStorage.setItem(keyPrefix+"_"+id, el.type==="checkbox"?el.checked:el.value);
+  });
+  toast("✅ 今日紀錄已儲存！");
+  updateProgress();
+}
+function loadData(){
+  ids.forEach(id=>{
+    const el=document.getElementById(id);
+    const val=localStorage.getItem(keyPrefix+"_"+id);
+    if(val!==null){
+      if(el.type==="checkbox") el.checked=(val==="true");
+      else el.value=val;
+    }
+  });
+}
+function clearData(){
+  if(confirm("確定要清除今日紀錄？")){
+    ids.forEach(id=>localStorage.removeItem(keyPrefix+"_"+id));
+    location.reload();
+  }
+}
+document.getElementById("save").onclick=saveData;
+document.getElementById("clear").onclick=clearData;
+loadData();
+
+// 📊 進度條
+function updateProgress(){
+  const now=new Date();
+  let total=0,done=0;
+  for(let i=0;i<7;i++){
+    const d=new Date(now); d.setDate(now.getDate()-i);
+    const k=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+    schedule.forEach((s,idx)=>{
+      if(!s.school){
+        const val=localStorage.getItem(k+"_c"+idx);
+        if(val!==null){total++; if(val==="true")done++;}
+      }
+    });
+  }
+  const per=total?Math.round(done/total*100):0;
+  const fill=document.getElementById("pfill");
+  const lbl=document.getElementById("plabel");
+  fill.style.width=per+"%";
+  fill.style.background=per<50?"#ff4d4d":(per<80?"#ffc107":"var(--accent)");
+  lbl.innerText=per+"%";
+}
+document.querySelectorAll("input[type='checkbox']").forEach(c=>c.onchange=updateProgress);
+updateProgress();
+
+// 📤 匯出 CSV
+document.getElementById("export").addEventListener("click",()=>{
+  let csv="日期,時間,學習內容,完成\n";
+  for(let i=0;i<7;i++){
+    const d=new Date(); d.setDate(d.getDate()-i);
+    const k=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+    schedule.forEach((s,idx)=>{
+      if(!s.school){
+        const subject=localStorage.getItem(k+"_s"+idx)||"";
+        const done=localStorage.getItem(k+"_c"+idx)==="true"?"✔":"";
+        csv+=`${k},${s.time},${subject},${done}\n`;
+      }
+    });
+  }
+  const blob=new Blob(["\uFEFF"+csv],{type:"text/csv;charset=utf-8"});
+  const link=document.createElement("a");
+  link.href=URL.createObjectURL(blob);
+  link.download="DSE-Week-Report.csv";
+  link.click();
+  toast("📤 已匯出本週報告！");
+});
+</script>
+</body>
+</html>我
