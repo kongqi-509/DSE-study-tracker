@@ -39,6 +39,8 @@ button.save{background:var(--primary);}
 button.clear{background:#666;}
 button.export{background:var(--accent);}
 button.timer{background:#f39c12;}
+button.plan{background:#2e8b57;} /* ✅ 新增開啟智能學習頁按鈕樣式 */
+button.plan:hover{background:#3da96a;}
 .progress-bar{width:100%;height:16px;background:#ddd;border-radius:8px;border:1px solid #bbb;overflow:hidden;}
 .progress-fill{height:100%;width:0;background:var(--accent);min-width:4px;transition:width 0.4s ease;}
 .progress-label{text-align:right;font-size:0.85rem;margin-top:0.3rem;}
@@ -58,6 +60,12 @@ footer{text-align:center;font-size:0.8rem;color:#888;margin:1rem 0;}
 </header>
 
 <main>
+
+  <!-- ✅ 新增「查看智能學習計劃」按鈕 -->
+  <div style="text-align:center;margin:0.5rem 0 1rem 0;">
+    <button class="plan" onclick="window.open('plan.html','_blank')">📊 查看智能一週學習計劃</button>
+  </div>
+
   <h2>🧠 今日建議科目</h2>
   <div id="suggestion">載入中...</div>
 
@@ -100,12 +108,12 @@ document.getElementById("date").innerText=
  `${today.getFullYear()}年${today.getMonth()+1}月${today.getDate()}日（星期${w}）`;
 const keyPrefix=`${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,"0")}-${String(today.getDate()).padStart(2,"0")}`;
 
-// 🧩 建議科目
+// 🧩 建議科目（手動簡表）
 const plan={1:{main:"中文",sub:"英文"},2:{main:"數學",sub:"化學"},3:{main:"ICT",sub:"英文"},4:{main:"數學",sub:"中文"},5:{main:"化學",sub:"ICT"},6:{main:"Past Paper 模擬",sub:"弱科重點"},0:{main:"自由溫習／休息",sub:"錯題整理"}};
 const tplan=plan[today.getDay()];
 document.getElementById("suggestion").innerHTML=`💡 <b>主科：</b>${tplan.main}<br>🧩 <b>副科：</b>${tplan.sub}`;
 
-// 🗓️ 時段表（修正版 id）
+// 🗓️ 時段表
 const tbody=document.getElementById("scheduleBody");
 let schedule=[];
 if(today.getDay()>=1&&today.getDay()<=5){
@@ -122,21 +130,17 @@ if(today.getDay()>=1&&today.getDay()<=5){
     {time:"16:00–17:30"},{time:"19:00–20:30"},
     {time:"20:30–22:00"}];
 }
-
 let ids=[];
-let inputIndex=0;
+let idx=0;
 schedule.forEach(s=>{
   const tr=document.createElement("tr");
   if(s.school){
     tr.innerHTML=`<td>${s.time}</td><td class="school">${s.label}</td><td>🏫</td>`;
   }else{
-    const sId="s"+inputIndex, cId="c"+inputIndex;
-    ids.push(sId,cId);
-    tr.innerHTML=`
-      <td>${s.time}</td>
-      <td><input id="${sId}" class="subject-input" placeholder="學習內容"></td>
-      <td><input type="checkbox" id="${cId}"></td>`;
-    inputIndex++;
+    const sid="s"+idx,cid="c"+idx;
+    ids.push(sid,cid);
+    tr.innerHTML=`<td>${s.time}</td><td><input id="${sid}" class="subject-input" placeholder="學習內容"></td><td><input type="checkbox" id="${cid}"></td>`;
+    idx++;
   }
   tbody.appendChild(tr);
 });
@@ -144,11 +148,11 @@ schedule.forEach(s=>{
 // 🔔 Toast
 function toast(msg){
   const t=document.getElementById("toast");
-  t.innerText=msg; t.classList.add("show");
+  t.innerText=msg;t.classList.add("show");
   setTimeout(()=>t.classList.remove("show"),2000);
 }
 
-// 💾 儲存 & 載入
+// 💾 儲存＆載入
 function saveData(){
   ids.forEach(id=>{
     const el=document.getElementById(id);
@@ -182,9 +186,9 @@ function updateProgress(){
   let total=0,done=0;
   for(let i=0;i<7;i++){
     const d=new Date(now);d.setDate(now.getDate()-i);
-    const dateKey=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
-    for(let idx=0;idx<15;idx++){
-      const state=localStorage.getItem(dateKey+"_c"+idx);
+    const key=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+    for(let i2=0;i2<15;i2++){
+      const state=localStorage.getItem(key+"_c"+i2);
       if(state!==null){ total++; if(state==="true")done++; }
     }
   }
@@ -202,10 +206,10 @@ document.getElementById("export").onclick=()=>{
   for(let i=0;i<7;i++){
     const d=new Date();d.setDate(d.getDate()-i);
     const k=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
-    for(let idx=0;idx<15;idx++){
-      const sub=localStorage.getItem(k+"_s"+idx)||"";
-      const done=localStorage.getItem(k+"_c"+idx)==="true"?"✔":"";
-      if(sub||done)csv+=`${k},時段${idx+1},${sub},${done}\n`;
+    for(let j=0;j<15;j++){
+      const sub=localStorage.getItem(k+"_s"+j)||"";
+      const done=localStorage.getItem(k+"_c"+j)==="true"?"✔":"";
+      if(sub||done)csv+=`${k},時段${j+1},${sub},${done}\n`;
     }
   }
   const blob=new Blob(["\uFEFF"+csv],{type:"text/csv;charset=utf-8"});
@@ -220,15 +224,13 @@ document.getElementById("export").onclick=()=>{
 let timer=null,timeLeft=0;
 const timerBox=document.getElementById("timerBox");
 const timerDisplay=document.getElementById("timerDisplay");
-
 function format(sec){
   const m=Math.floor(sec/60).toString().padStart(2,"0");
   const s=(sec%60).toString().padStart(2,"0");
   return `${m}:${s}`;
 }
-
 document.getElementById("startTimer").onclick=()=>{
-  let mins=prompt("請輸入倒數分鐘：", "25");
+  let mins=prompt("請輸入倒數分鐘：","25");
   mins=parseInt(mins);
   if(isNaN(mins)||mins<=0)return;
   timeLeft=mins*60;
@@ -247,16 +249,12 @@ document.getElementById("startTimer").onclick=()=>{
     }
   },1000);
 };
-
 document.getElementById("stopTimer").onclick=()=>{
   clearInterval(timer);
   timerBox.style.display="none";
   toast("⏹ 計時中止");
 };
-
-function renderTimer(){
-  timerDisplay.textContent=format(timeLeft);
-}
+function renderTimer(){timerDisplay.textContent=format(timeLeft);}
 </script>
 </body>
 </html>
