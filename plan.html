@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>DSE 智能學習打卡＋圓餅分析</title>
+
+<style>
+:root {
+  --primary:#0052cc;
+  --accent:#4caf50;
+  --bg:#f4f7ff;
+  --panel:#fff;
+  --text:#222;
+}
+@media (prefers-color-scheme:dark){
+  :root{
+    --primary:#4a90e2;
+    --accent:#00cc66;
+    --bg:#1e1e1e;
+    --panel:#2a2a2a;
+    --text:#f0f0f0;
+  }
+}
+body{font-family:"Noto Sans TC",sans-serif;background:var(--bg);color:var(--text);margin:0;}
+header{background:var(--primary);color:#fff;text-align:center;padding:1rem;}
+#clock{font-weight:bold;font-size:1.1rem;margin-top:0.3rem;}
+main{background:var(--panel);max-width:850px;margin:1rem auto;border-radius:12px;box-shadow:0 0 6px rgba(0,0,0,.15);padding:1rem;}
+h2{border-left:6px solid var(--primary);padding-left:0.4rem;}
+button{background:var(--primary);color:#fff;border:none;border-radius:6px;padding:0.5rem 1rem;margin:0.3rem;cursor:pointer;}
+button.setting{background:#f39c12;}
+button.export{background:var(--accent);}
+button.back{background:#666;}
+button.back:hover{background:#808080;}
+#suggestion,#weekPlan{background:#e8f0ff;padding:0.8rem;border-radius:8px;margin:0.5rem 0;}
+table{width:100%;border-collapse:collapse;margin-top:0.5rem;}
+th,td{border:1px solid #ccc;padding:0.4rem;text-align:center;}
+th{background:var(--primary);color:#fff;}
+#pieChart{width:100%;height:280px;}
+#settingsModal{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);display:none;justify-content:center;align-items:center;z-index:1000;}
+.modal-content{background:var(--panel);border-radius:8px;padding:1rem;width:90%;max-width:400px;}
+.modal-content input{width:100%;padding:0.4rem;}
+.modal-buttons{text-align:center;margin-top:0.8rem;}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--primary);color:#fff;padding:0.6rem 1rem;border-radius:6px;opacity:0;transition:opacity .4s;}
+.toast.show{opacity:1;}
+footer{text-align:center;font-size:0.8rem;color:#888;margin:1rem 0;}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>📊 DSE 智能一週學習計劃</h1>
+  <div id="date"></div>
+  <div id="clock">--:--:--</div>
+</header>
+
+<main>
+  <div style="text-align:center;">
+    <!-- 🔙 返回打卡頁按鈕 -->
+    <button class="back" onclick="window.location.href='index.html'">🔙 返回打卡頁</button>
+    <button class="setting" id="openSetting">⚙️ 個人設定</button>
+  </div>
+
+  <h2>🧠 今日建議科目</h2>
+  <div id="suggestion">載入中...</div>
+
+  <h2>📊 各科溫習比例</h2>
+  <canvas id="pieChart"></canvas>
+
+  <h2>📅 一週智能計劃</h2>
+  <div id="weekPlan">載入中...</div>
+</main>
+
+<footer>© 2025 DSE Smart Study Tracker</footer>
+<div class="toast" id="toast">✅ 已儲存！</div>
+
+<!-- ⚙️ 設定彈窗 -->
+<div id="settingsModal">
+  <div class="modal-content">
+    <h3>DSE 預期分數設定</h3>
+    <p style="font-size:0.85rem;color:#555;">請輸入預期分數（1=弱科，5=強科）</p>
+    <label>中文：</label><input type="number" id="score_chi" min="1" max="5">
+    <label>英文：</label><input type="number" id="score_eng" min="1" max="5">
+    <label>數學：</label><input type="number" id="score_math" min="1" max="5">
+    <label>化學：</label><input type="number" id="score_chem" min="1" max="5">
+    <label>ICT：</label><input type="number" id="score_ict" min="1" max="5">
+    <div class="modal-buttons">
+      <button id="saveSetting" class="export">💾 儲存設定</button>
+      <button id="closeSetting" class="setting">關閉</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// 🕒 時鐘
+function updateClock(){
+  const n=new Date();
+  document.getElementById("clock").innerText=n.toLocaleTimeString("zh-HK",{hour12:false});
+}
+setInterval(updateClock,1000);updateClock();
+const today=new Date();
+const weekCN="日一二三四五六"[today.getDay()];
+document.getElementById("date").innerText=`${today.getFullYear()}年${today.getMonth()+1}月${today.getDate()}日（星期${weekCN}）`;
+
+function toast(msg){
+  const t=document.getElementById("toast");
+  t.innerText=msg;t.classList.add("show");
+  setTimeout(()=>t.classList.remove("show"),1800);
+}
+
+// 🎯 讀取/儲存設定
+function getScores(){
+  let s=JSON.parse(localStorage.getItem("dseScores")||"{}");
+  return {chi:+(s.chi||3),eng:+(s.eng||3),math:+(s.math||3),chem:+(s.chem||3),ict:+(s.ict||3)};
+}
+function saveScores(o){localStorage.setItem("dseScores",JSON.stringify(o));}
+
+// ⚙️ Modal
+const modal=document.getElementById("settingsModal");
+document.getElementById("openSetting").onclick=()=>{
+  modal.style.display="flex";
+  const s=getScores();
+  ["chi","eng","math","chem","ict"].forEach(k=>{document.getElementById("score_"+k).value=s[k];});
+};
+document.getElementById("closeSetting").onclick=()=>modal.style.display="none";
+document.getElementById("saveSetting").onclick=()=>{
+  const o={
+    chi:document.getElementById("score_chi").value,
+    eng:document.getElementById("score_eng").value,
+    math:document.getElementById("score_math").value,
+    chem:document.getElementById("score_chem").value,
+    ict:document.getElementById("score_ict").value
+  };
+  saveScores(o);
+  modal.style.display="none";
+  toast("✅ 已更新設定！");
+  setTimeout(()=>location.reload(),1000);
+};
+
+// 🧮 加權週表
+function generateWeightedWeek(){
+  const scores=getScores();
+  const subjects=["中文","英文","數學","化學","ICT"];
+  let total=0,weights={};
+  const keys=["chi","eng","math","chem","ict"];
+  subjects.forEach((s,i)=>{weights[s]=6-scores[keys[i]];total+=weights[s];});
+  const perc={};
+  subjects.forEach(s=>{perc[s]=Math.round(weights[s]/total*100);});
+  let planDays=[],days=7;
+  subjects.forEach(s=>{
+    let d=Math.round(weights[s]/total*7);
+    if(d<1)d=1;
+    planDays.push({subject:s,days:d});
+  });
+  let sum=planDays.reduce((a,b)=>a+b.days,0);
+  while(sum>7){
+    let max=planDays.sort((a,b)=>b.days-a.days)[0];
+    max.days--;sum--;
+  }
+  const schedule={},used={};
+  subjects.forEach(s=>used[s]=0);
+  for(let i=0;i<7;i++){
+    const pick=planDays.sort((a,b)=>((b.days-used[b.subject])-(a.days-used[a.subject])))[0];
+    used[pick.subject]++;
+    schedule[i]={main:pick.subject,sub:"複習其他弱科"};
+  }
+  return {schedule,perc};
+}
+
+// 🗓️ 顯示表與今日建議
+const {schedule,perc}=generateWeightedWeek();
+const dayName=["日","一","二","三","四","五","六"];
+let html="<table><tr><th>星期</th><th>主科</th><th>副科</th></tr>";
+for(let i=0;i<7;i++){
+  const d=schedule[i];
+  html+=`<tr><td>星期${dayName[i]}</td><td>${d.main}</td><td>${d.sub}</td></tr>`;
+}
+html+="</table>";
+document.getElementById("weekPlan").innerHTML=html;
+const todayPlan=schedule[today.getDay()];
+document.getElementById("suggestion").innerHTML=`💡 <b>主科：</b>${todayPlan.main}<br>🧩 <b>副科：</b>${todayPlan.sub}`;
+
+// 📊 畫圓餅圖
+const colors=["#ff6384","#36a2eb","#ffcd56","#4bc0c0","#9966ff"];
+function drawPie(data){
+  const canvas=document.getElementById("pieChart");
+  const ctx=canvas.getContext("2d");
+  const total=Object.values(data).reduce((a,b)=>a+b,0);
+  const centerX=canvas.width/2,centerY=canvas.height/2,radius=Math.min(centerX,centerY)-10;
+  let start=0,i=0;
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  for(const k in data){
+    const val=data[k];
+    const slice=Math.PI*2*val/total;
+    ctx.beginPath();
+    ctx.moveTo(centerX,centerY);
+    ctx.arc(centerX,centerY,radius,start,start+slice);
+    ctx.closePath();
+    ctx.fillStyle=colors[i%colors.length];
+    ctx.fill();
+    start+=slice;
+    i++;
+  }
+  // 圖例
+  let y=20,j=0;
+  for(const k in data){
+    ctx.fillStyle=colors[j%colors.length];
+    ctx.fillRect(canvas.width-120,y-10,14,14);
+    ctx.fillStyle=window.matchMedia('(prefers-color-scheme: dark)').matches?"#fff":"#000";
+    ctx.font="13px sans-serif";
+    ctx.fillText(`${k} ${data[k]}%`,canvas.width-100,y+2);
+    y+=24; j++;
+  }
+}
+function resizeAndDraw(){
+  const c=document.getElementById("pieChart");
+  c.width=c.clientWidth;
+  c.height=280;
+  drawPie(perc);
+}
+window.addEventListener('resize',resizeAndDraw);
+resizeAndDraw();
+</script>
+</body>
+</html>
