@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>📘 調查溫習時間 </title>
+<title>📘 智能學習計劃（Predicted Grade 決定溫習時間）</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
 body{
@@ -44,14 +44,21 @@ canvas{max-width:100%;margin-top:20px;}
 .success{background:#e8ffea;color:#1a7f37;border:1px solid #1a7f37;}
 .error{background:#ffecec;color:#b71c1c;border:1px solid #b71c1c;}
 small{color:#666;}
+#backBtn{
+  display:block;
+  width:100%;
+  text-align:center;
+  background:#6c757d;
+}
+#backBtn:hover{background:#495057;}
 </style>
 </head>
 <body>
 
-<h1>🧠 調整學習計劃 </h1>
+<h1>🧠 智能學習計劃（Predicted Grade → 溫習時間比重）</h1>
 
 <div class="card">
-  <h2>📘 輸入各科 Predicted Grade</h2>
+  <h2>📘 輸入各科 Predicted Grade</h2>
   <table id="gradeTable">
     <thead><tr><th>科目</th><th>預測等級</th></tr></thead>
     <tbody></tbody>
@@ -62,7 +69,7 @@ small{color:#666;}
 </div>
 
 <div class="card">
-  <h2>🎯 今日主副科設定</h2>
+  <h2>🎯 今日主/副科設定</h2>
   <p>📅 日期：<span id="todayDate"></span></p>
 
   <label>主科：</label>
@@ -70,13 +77,15 @@ small{color:#666;}
   <label>副科：</label>
   <select id="sub"></select>
   <button id="saveBtn">💾 儲存今日建議</button>
+
   <div id="msg"></div>
-  <small>完成後可到 <a href="index.html" target="_blank">index.html</a> 查看同步結果。</small>
+  <button id="backBtn">⬅️ 返回每日打卡頁</button>
+  <small>完成後可至 <a href="index.html" target="_blank">index.html</a> 查看同步結果。</small>
 </div>
 
 <script>
 // === 設定資料 ===
-const subjects = ["中文","英文","數學","化學","經濟","會計","ICT"];
+const subjects = ["中文","英文","數學","公民與社會發展","生物","化學","物理","經濟","會計","ICT"];
 const gradeValue = { "5**":7,"5*":6,"5":5,"4":4,"3":3,"2":2,"1":1 };
 const todayStr = new Date().toLocaleDateString("zh-HK");
 
@@ -110,7 +119,7 @@ function calcWeights(){
   subjects.forEach(s=>{
     const g=document.getElementById("g_"+s).value;
     const val=gradeValue[g]||0;
-    scores[s]=val? (8-val) : 0; // 反比 (成績低 → 加大溫習比例)
+    scores[s]=val? (8-val) : 0; // 成績越低→比重越高
   });
   return scores;
 }
@@ -147,7 +156,7 @@ function drawChart(weights){
 document.getElementById("calcBtn").addEventListener("click",()=>{
   const weights=calcWeights();
   drawChart(weights);
-  alert("📊 已根據成績計算溫習時間分配！");
+  alert("📊 已計算建議溫習時間比重！");
 });
 
 document.getElementById("saveBtn").addEventListener("click",()=>{
@@ -165,6 +174,11 @@ document.getElementById("saveBtn").addEventListener("click",()=>{
   }));
   msgDiv.className="success";
   msgDiv.innerHTML=`✅ 已儲存今日建議！<br>主科：<b>${main}</b> | 副科：<b>${sub}</b>`;
+});
+
+// === 返回按鈕 ===
+document.getElementById("backBtn").addEventListener("click",()=>{
+  window.location.href="index.html";
 });
 </script>
 </body>
