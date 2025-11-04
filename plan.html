@@ -2,232 +2,170 @@
 <html lang="zh-HK">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>調整一週學習計劃</title>
-
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>📘 調查溫習時間 </title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
-:root{
-  --primary:#0052cc;
-  --accent:#4caf50;
-  --bg:#f4f7ff;
-  --panel:#fff;
-  --text:#222;
+body{
+  font-family:"Noto Sans TC",sans-serif;
+  background:#f4f6f8;
+  margin:0;
+  padding:20px;
+  color:#222;
 }
-@media (prefers-color-scheme: dark){
-  :root{
-    --primary:#4a90e2;
-    --accent:#00cc66;
-    --bg:#1e1e1e;
-    --panel:#2a2a2a;
-    --text:#eee;
-  }
+h1{text-align:center;color:#007bff;}
+.card{
+  background:#fff;
+  margin:20px auto;
+  padding:20px;
+  border-radius:8px;
+  box-shadow:0 3px 8px rgba(0,0,0,0.1);
+  max-width:700px;
 }
-body{font-family:"Noto Sans TC",sans-serif;background:var(--bg);color:var(--text);margin:0;}
-header{background:var(--primary);color:#fff;text-align:center;padding:1rem;}
-main{max-width:850px;margin:1rem auto;background:var(--panel);border-radius:12px;padding:1rem;box-shadow:0 0 6px rgba(0,0,0,.15);}
-button{border:none;border-radius:6px;padding:0.5rem 1rem;margin:0.2rem;cursor:pointer;color:#fff;}
-button.back{background:#666;}
-button.back:hover{background:#777;}
-button.setting{background:#f39c12;}
-button.export{background:var(--accent);}
-h2{border-left:6px solid var(--primary);padding-left:0.4rem;}
-#suggestion,#weekPlan{background:#e8f0ff;border-radius:8px;padding:0.8rem;margin:0.6rem 0;}
-#pieChart{width:100%;height:280px;}
-table{width:100%;border-collapse:collapse;margin-top:0.5rem;}
-th,td{border:1px solid #ccc;text-align:center;padding:0.4rem;}
-th{background:var(--primary);color:#fff;}
-.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--primary);color:#fff;padding:0.6rem 1rem;border-radius:6px;opacity:0;transition:opacity .4s;}
-.toast.show{opacity:1;}
-#settingsModal{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);display:none;justify-content:center;align-items:center;z-index:1000;}
-.modal-content{background:var(--panel);border-radius:8px;padding:1rem;width:90%;max-width:400px;}
-.modal-content input{width:100%;padding:0.4rem;margin-bottom:0.4rem;}
-.modal-buttons{text-align:center;margin-top:0.6rem;}
-footer{text-align:center;color:#888;font-size:0.8rem;margin:1rem 0;}
+table{
+  width:100%;
+  border-collapse:collapse;
+  margin-top:10px;
+}
+th,td{
+  padding:8px;
+  text-align:center;
+  border-bottom:1px solid #eee;
+}
+th{background:#f0f3f6;}
+button{
+  background:#007bff;color:#fff;border:none;border-radius:6px;
+  padding:10px 15px;font-size:1em;margin-top:10px;
+}
+button:hover{background:#0056b3;cursor:pointer;}
+select{padding:6px;border-radius:6px;border:1px solid #ccc;}
+canvas{max-width:100%;margin-top:20px;}
+#msg{margin-top:15px;padding:10px;border-radius:6px;text-align:center;font-weight:bold;}
+.success{background:#e8ffea;color:#1a7f37;border:1px solid #1a7f37;}
+.error{background:#ffecec;color:#b71c1c;border:1px solid #b71c1c;}
+small{color:#666;}
 </style>
 </head>
-
 <body>
-<header>
-  <h1>📊 調整一週學習計劃</h1>
-  <div id="date"></div>
-  <div id="clock"></div>
-</header>
 
-<main>
-  <div style="text-align:center;">
-    <button class="back" onclick="window.location.href='index.html'">🔙 返回打卡頁</button>
-    <button class="setting" id="openSetting">⚙️ 個人設定</button>
-  </div>
+<h1>🧠 調整學習計劃 </h1>
 
-  <h2>🧠 今日建議科目</h2>
-  <div id="suggestion">載入中...</div>
+<div class="card">
+  <h2>📘 輸入各科 Predicted Grade</h2>
+  <table id="gradeTable">
+    <thead><tr><th>科目</th><th>預測等級</th></tr></thead>
+    <tbody></tbody>
+  </table>
 
-  <h2>📊 各科溫習比例</h2>
+  <button id="calcBtn">📊 計算建議溫習比重</button>
   <canvas id="pieChart"></canvas>
+</div>
 
-  <h2>📅 一週溫習計劃</h2>
-  <div id="weekPlan">載入中...</div>
-</main>
+<div class="card">
+  <h2>🎯 今日主副科設定</h2>
+  <p>📅 日期：<span id="todayDate"></span></p>
 
-<footer>© 2025–2026 DSE Study Tracker</footer>
-<div class="toast" id="toast">✅ 已儲存！</div>
-
-<!-- 設定Modal -->
-<div id="settingsModal">
-  <div class="modal-content">
-    <h3>設定預期分數（1=弱科，5=強科）</h3>
-    中文：<input type="number" id="score_chi" min="1" max="5">
-    英文：<input type="number" id="score_eng" min="1" max="5">
-    數學：<input type="number" id="score_math" min="1" max="5">
-    化學：<input type="number" id="score_chem" min="1" max="5">
-    ICT：<input type="number" id="score_ict" min="1" max="5">
-    <div class="modal-buttons">
-      <button class="export" id="saveSetting">💾 儲存設定</button>
-      <button class="setting" id="closeSetting">關閉</button>
-    </div>
-  </div>
+  <label>主科：</label>
+  <select id="main"></select>
+  <label>副科：</label>
+  <select id="sub"></select>
+  <button id="saveBtn">💾 儲存今日建議</button>
+  <div id="msg"></div>
+  <small>完成後可到 <a href="index.html" target="_blank">index.html</a> 查看同步結果。</small>
 </div>
 
 <script>
-// 🕒 時鐘 & 日期
-function updateClock(){
-  const d=new Date();
-  document.getElementById("clock").innerText=d.toLocaleTimeString("zh-HK",{hour12:false});
-}
-setInterval(updateClock,1000);updateClock();
-const d=new Date();
-const weekDay="日一二三四五六"[d.getDay()];
-document.getElementById("date").innerText=
-  `${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日（星期${weekDay}）`;
-
-function toast(msg){
-  const t=document.getElementById("toast");
-  t.innerText=msg;t.classList.add("show");
-  setTimeout(()=>t.classList.remove("show"),1800);
-}
-
-// 讀取設定
-function getScores(){
-  let s=JSON.parse(localStorage.getItem("dseScores")||"{}");
-  return {chi:+(s.chi||3),eng:+(s.eng||3),math:+(s.math||3),chem:+(s.chem||3),ict:+(s.ict||3)};
-}
-function saveScores(o){localStorage.setItem("dseScores",JSON.stringify(o));}
-
-// Modal
-const modal=document.getElementById("settingsModal");
-document.getElementById("openSetting").onclick=()=>{
-  modal.style.display="flex";
-  const s=getScores();
-  ["chi","eng","math","chem","ict"].forEach(k=>{
-    document.getElementById("score_"+k).value=s[k];
-  });
-};
-document.getElementById("closeSetting").onclick=()=>modal.style.display="none";
-document.getElementById("saveSetting").onclick=()=>{
-  const o={
-    chi:document.getElementById("score_chi").value,
-    eng:document.getElementById("score_eng").value,
-    math:document.getElementById("score_math").value,
-    chem:document.getElementById("score_chem").value,
-    ict:document.getElementById("score_ict").value
-  };
-  saveScores(o);modal.style.display="none";toast("✅ 已更新設定！");
-  setTimeout(()=>location.reload(),1000);
-};
-
-// 📅 排程邏輯
-function generateWeightedWeek(){
-  const s=getScores();
-  const keys=["chi","eng","math","chem","ict"];
-  const names=["中文","英文","數學","化學","ICT"];
-  let total=0,weights={};
-  names.forEach((n,i)=>{weights[n]=6-s[keys[i]];total+=weights[n];});
-  const perc={},planDays=[];
-  names.forEach(n=>{perc[n]=Math.round(weights[n]/total*100);});
-  names.forEach(n=>{
-    let d=Math.round(weights[n]/total*7); if(d<1)d=1;
-    planDays.push({subject:n,days:d});
-  });
-  let sum=planDays.reduce((a,b)=>a+b.days,0);
-  while(sum>7){planDays.sort((a,b)=>b.days-a.days)[0].days--;sum--;}
-
-  const schedule={},used={};names.forEach(n=>used[n]=0);
-  for(let i=0;i<7;i++){
-    const pick=planDays.sort((a,b)=>(b.days-used[b.subject])-(a.days-used[a.subject]))[0];
-    used[pick.subject]++;
-
-    // ⭐️ 新副科邏輯：從其他科隨機選一個
-    const remain=planDays.filter(p=>p.subject!==pick.subject);
-    const subPick=remain[Math.floor(Math.random()*remain.length)].subject;
-    schedule[i]={main:pick.subject,sub:subPick};
-  }
-  return {schedule,perc};
-}
-
-// 產生表格 + 今日建議
-const {schedule,perc}=generateWeightedWeek();
-const days=["日","一","二","三","四","五","六"];
-let html="<table><tr><th>星期</th><th>主科</th><th>副科</th></tr>";
-for(let i=0;i<7;i++){
-  html+=`<tr><td>星期${days[i]}</td><td>${schedule[i].main}</td><td>${schedule[i].sub}</td></tr>`;
-}
-html+="</table>";
-document.getElementById("weekPlan").innerHTML=html;
-
-const todayPlan=schedule[d.getDay()];
-document.getElementById("suggestion").innerHTML=
-  `💡 <b>主科：</b>${todayPlan.main}<br>🧩 <b>副科：</b>${todayPlan.sub}`;
-
-// 🧩 同步到 index.html
-localStorage.setItem('todaySuggestion', JSON.stringify(todayPlan));
-
-// 📊 圓餅圖繪製
-const colors=["#ff6384","#36a2eb","#ffcd56","#4bc0c0","#9966ff"];
-function drawPie(data){
-  const c=document.getElementById("pieChart");const ctx=c.getContext("2d");
-  const total=Object.values(data).reduce((a,b)=>a+b,0);
-  const cx=c.width/2,cy=c.height/2,r=Math.min(cx,cy)-10;
-  let start=0,i=0;ctx.clearRect(0,0,c.width,c.height);
-  for(const k in data){
-    const slice=2*Math.PI*data[k]/total;
-    ctx.beginPath();ctx.moveTo(cx,cy);
-    ctx.arc(cx,cy,r,start,start+slice);ctx.closePath();
-    ctx.fillStyle=colors[i%colors.length];ctx.fill();start+=slice;i++;
-  }
-  let y=20,j=0;
-  for(const k in data){
-    ctx.fillStyle=colors[j%colors.length];
-    ctx.fillRect(c.width-120,y-10,14,14);
-    ctx.fillStyle=(window.matchMedia('(prefers-color-scheme:dark)').matches?"#fff":"#000");
-    ctx.font="13px sans-serif";ctx.fillText(`${k} ${data[k]}%`,c.width-100,y+3);
-    y+=22;j++;
-  }
-}
-function resize(){const c=document.getElementById("pieChart");c.width=c.clientWidth;c.height=280;drawPie(perc);}
-window.addEventListener('resize',resize);resize();
-
-
+// === 設定資料 ===
+const subjects = ["中文","英文","數學","公民與社會發展","生物","化學","物理","經濟","會計","ICT"];
+const gradeValue = { "5**":7,"5*":6,"5":5,"4":4,"3":3,"2":2,"1":1 };
 const todayStr = new Date().toLocaleDateString("zh-HK");
 
-// 寫入 localStorage
-localStorage.setItem("todaySuggestion", JSON.stringify({
-  date: todayStr,
-  main: mainSubject,
-  sub: subSubject
-}));
+// === 初始化表格 ===
+const tbody = document.querySelector("#gradeTable tbody");
+subjects.forEach(s=>{
+  const row=document.createElement("tr");
+  row.innerHTML=`
+    <td>${s}</td>
+    <td>
+      <select id="g_${s}">
+        <option value="">--選擇等級--</option>
+        ${Object.keys(gradeValue).map(g=>`<option>${g}</option>`).join("")}
+      </select>
+    </td>`;
+  tbody.appendChild(row);
+});
 
-// 顯示提示文字（畫面上確認同步成功）
-const msgBox = document.createElement("div");
-msgBox.textContent = `✅ 已將「${mainSubject} / ${subSubject}」同步至學習打卡頁`;
-msgBox.style.padding = "10px";
-msgBox.style.background = "#e0ffe0";
-msgBox.style.marginTop = "20px";
-msgBox.style.textAlign = "center";
-msgBox.style.fontWeight = "600";
-document.body.appendChild(msgBox);
+// === 主/副科下拉 ===
+const mainSel=document.getElementById("main");
+const subSel=document.getElementById("sub");
+subjects.forEach(s=>{
+  const o1=document.createElement("option");o1.textContent=s;mainSel.appendChild(o1);
+  const o2=document.createElement("option");o2.textContent=s;subSel.appendChild(o2);
+});
+document.getElementById("todayDate").textContent=todayStr;
 
-console.log("✅ 今日建議已同步至學習打卡頁：", mainSubject, subSubject);
+// === 根據 Predicted Grade 計算反比溫習比重 ===
+function calcWeights(){
+  let scores={};
+  subjects.forEach(s=>{
+    const g=document.getElementById("g_"+s).value;
+    const val=gradeValue[g]||0;
+    scores[s]=val? (8-val) : 0; // 反比 (成績低 → 加大溫習比例)
+  });
+  return scores;
+}
 
+// === 繪圖 ===
+let chart;
+function drawChart(weights){
+  const data=Object.values(weights);
+  const labels=Object.keys(weights);
+  const ctx=document.getElementById("pieChart").getContext("2d");
+  if(chart) chart.destroy();
+  chart=new Chart(ctx,{
+    type:"pie",
+    data:{
+      labels:labels,
+      datasets:[{
+        data:data,
+        backgroundColor:[
+          "#FF6384","#36A2EB","#FFCE56","#4BC0C0","#9966FF",
+          "#FF9F40","#8BC34A","#E91E63","#9C27B0","#00BCD4"
+        ]
+      }]
+    },
+    options:{
+      plugins:{
+        legend:{position:"right"},
+        title:{display:true,text:"建議溫習時間分配（成績低→多時間）"}
+      }
+    }
+  });
+}
+
+// === 按鈕事件 ===
+document.getElementById("calcBtn").addEventListener("click",()=>{
+  const weights=calcWeights();
+  drawChart(weights);
+  alert("📊 已根據成績計算溫習時間分配！");
+});
+
+document.getElementById("saveBtn").addEventListener("click",()=>{
+  const main=mainSel.value;
+  const sub=subSel.value;
+  const msgDiv=document.getElementById("msg");
+  if(!main||!sub){
+    msgDiv.className="error";
+    msgDiv.textContent="⚠️ 請先選主科與副科！";
+    return;
+  }
+  const weights=calcWeights();
+  localStorage.setItem("todaySuggestion",JSON.stringify({
+    date:todayStr, main, sub, weights
+  }));
+  msgDiv.className="success";
+  msgDiv.innerHTML=`✅ 已儲存今日建議！<br>主科：<b>${main}</b> | 副科：<b>${sub}</b>`;
+});
 </script>
 </body>
 </html>
