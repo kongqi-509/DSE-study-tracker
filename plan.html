@@ -207,14 +207,28 @@ function resize(){const c=document.getElementById("pieChart");c.width=c.clientWi
 window.addEventListener('resize',resize);resize();
 
 
+// 🧩 測試主、副科（可改之後自動生成邏輯）
+let mainSubject = "數學";
+let subSubject = "英文";
+
 const todayStr = new Date().toLocaleDateString("zh-HK");
 
-// 寫入 localStorage，供 index.html 自動讀取
+// 寫入 localStorage
 localStorage.setItem("todaySuggestion", JSON.stringify({
   date: todayStr,
   main: mainSubject,
   sub: subSubject
 }));
+
+// 顯示提示文字（畫面上確認同步成功）
+const msgBox = document.createElement("div");
+msgBox.textContent = `✅ 已將「${mainSubject} / ${subSubject}」同步至學習打卡頁`;
+msgBox.style.padding = "10px";
+msgBox.style.background = "#e0ffe0";
+msgBox.style.marginTop = "20px";
+msgBox.style.textAlign = "center";
+msgBox.style.fontWeight = "600";
+document.body.appendChild(msgBox);
 
 console.log("✅ 今日建議已同步至學習打卡頁：", mainSubject, subSubject);
 
