@@ -39,8 +39,9 @@ button.save{background:var(--primary);}
 button.clear{background:#666;}
 button.export{background:var(--accent);}
 button.timer{background:#f39c12;}
-button.plan{background:#2e8b57;} /* ✅ 新增開啟智能學習頁按鈕樣式 */
+button.plan{background:#2e8b57;}
 button.plan:hover{background:#3da96a;}
+button.history{background:#7979ff;}
 .progress-bar{width:100%;height:16px;background:#ddd;border-radius:8px;border:1px solid #bbb;overflow:hidden;}
 .progress-fill{height:100%;width:0;background:var(--accent);min-width:4px;transition:width 0.4s ease;}
 .progress-label{text-align:right;font-size:0.85rem;margin-top:0.3rem;}
@@ -50,6 +51,7 @@ footer{text-align:center;font-size:0.8rem;color:#888;margin:1rem 0;}
 @media(max-width:600px){table,th,td{font-size:0.8rem;}}
 #timerBox{display:none;text-align:center;margin-top:0.5rem;}
 #timerDisplay{font-size:1.2rem;font-weight:bold;color:var(--primary);}
+#historyBox{background:#f3f6ff;border-radius:8px;padding:0.6rem;margin-top:0.6rem;max-height:150px;overflow-y:auto;font-size:0.9rem;}
 </style>
 </head>
 <body>
@@ -60,10 +62,8 @@ footer{text-align:center;font-size:0.8rem;color:#888;margin:1rem 0;}
 </header>
 
 <main>
-
-  <!-- ✅ 新增「查看學習計劃」按鈕 -->
   <div style="text-align:center;margin:0.5rem 0 1rem 0;">
-    <button class="plan" onclick="window.open('plan.html','_blank')">📊 查看一週學習計劃</button>
+    <button class="plan" onclick="window.location.href='plan.html'">📊 查看一週學習計劃</button>
   </div>
 
   <h2>🧠 今日建議科目</h2>
@@ -77,6 +77,7 @@ footer{text-align:center;font-size:0.8rem;color:#888;margin:1rem 0;}
     <button class="clear" id="clear">🧹 清除</button>
     <button class="export" id="export">📤 匯出本週報告</button>
     <button class="timer" id="startTimer">⏱ 開啟計時器</button>
+    <button class="history" onclick="toggleHistory()">📅 查看歷史紀錄</button>
   </div>
 
   <div id="timerBox">
@@ -87,6 +88,8 @@ footer{text-align:center;font-size:0.8rem;color:#888;margin:1rem 0;}
   <h2>📊 本週完成率</h2>
   <div class="progress-bar"><div class="progress-fill" id="pfill"></div></div>
   <div class="progress-label" id="plabel">0%</div>
+
+  <div id="historyBox" style="display:none;">尚無紀錄</div>
 </main>
 
 <footer>© 2025-2026 DSE Study Tracker</footer>
@@ -96,24 +99,31 @@ footer{text-align:center;font-size:0.8rem;color:#888;margin:1rem 0;}
 // 🕒 時鐘
 function updateClock(){
   const n=new Date();
-  document.getElementById("clock").innerText=
-    n.toLocaleTimeString("zh-HK",{hour12:false});
+  document.getElementById("clock").innerText=n.toLocaleTimeString("zh-HK",{hour12:false});
 }
 setInterval(updateClock,1000);updateClock();
 
-// 📅 日期
+// 📅 日期 & localStorage key
 const today=new Date();
 const w="日一二三四五六"[today.getDay()];
 document.getElementById("date").innerText=
  `${today.getFullYear()}年${today.getMonth()+1}月${today.getDate()}日（星期${w}）`;
 const keyPrefix=`${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,"0")}-${String(today.getDate()).padStart(2,"0")}`;
 
-// 🧩 建議科目（手動簡表）
-const plan={1:{main:"中文",sub:"英文"},2:{main:"數學",sub:"化學"},3:{main:"ICT",sub:"英文"},4:{main:"數學",sub:"中文"},5:{main:"化學",sub:"ICT"},6:{main:"Past Paper 模擬",sub:"弱科重點"},0:{main:"自由溫習／休息",sub:"錯題整理"}};
-const tplan=plan[today.getDay()];
-document.getElementById("suggestion").innerHTML=`💡 <b>主科：</b>${tplan.main}<br>🧩 <b>副科：</b>${tplan.sub}`;
+// 🧠 與 plan.html 同步的今日建議科目
+function loadSuggestion(){
+  const sug=JSON.parse(localStorage.getItem("todaySuggestion")||"{}");
+  const sugDiv=document.getElementById("suggestion");
+  const todayStr=new Date().toLocaleDateString("zh-HK");
+  if(sug.date===todayStr && sug.main){
+    sugDiv.innerHTML=`💡 <b>主科：</b>${sug.main}<br>🧩 <b>副科：</b>${sug.sub}`;
+  }else{
+    sugDiv.innerText="📅 請先開啟「智能一週學習計劃」頁生成今日建議";
+  }
+}
+loadSuggestion();
 
-// 🗓️ 時段表
+// 🗓️ 生成今日時段表
 const tbody=document.getElementById("scheduleBody");
 let schedule=[];
 if(today.getDay()>=1&&today.getDay()<=5){
@@ -130,8 +140,7 @@ if(today.getDay()>=1&&today.getDay()<=5){
     {time:"16:00–17:30"},{time:"19:00–20:30"},
     {time:"20:30–22:00"}];
 }
-let ids=[];
-let idx=0;
+let ids=[],idx=0;
 schedule.forEach(s=>{
   const tr=document.createElement("tr");
   if(s.school){
@@ -152,22 +161,32 @@ function toast(msg){
   setTimeout(()=>t.classList.remove("show"),2000);
 }
 
-// 💾 儲存＆載入
+// 💾 保存今日資料 + 歷史紀錄
 function saveData(){
+  const record=[];
   ids.forEach(id=>{
     const el=document.getElementById(id);
-    if(el) localStorage.setItem(keyPrefix+"_"+id, el.type==="checkbox"?el.checked:el.value);
+    if(!el)return;
+    if(el.type==="checkbox"){
+      localStorage.setItem(keyPrefix+"_"+id,el.checked);
+      if(id.startsWith("c") && el.checked)record.push(id);
+    }else{
+      localStorage.setItem(keyPrefix+"_"+id,el.value);
+    }
   });
+  const sug=JSON.parse(localStorage.getItem("todaySuggestion")||"{}");
+  const allHist=JSON.parse(localStorage.getItem("studyHistory")||"{}");
+  allHist[keyPrefix]={date:keyPrefix,main:sug.main||"未定",sub:sug.sub||"未定",checked:record.length};
+  localStorage.setItem("studyHistory",JSON.stringify(allHist));
   toast("✅ 今日紀錄已儲存！");
   updateProgress();
+  loadHistory();
 }
 function loadData(){
   ids.forEach(id=>{
     const el=document.getElementById(id);
     const v=localStorage.getItem(keyPrefix+"_"+id);
-    if(v!==null){
-      if(el.type==="checkbox")el.checked=(v==="true");else el.value=v;
-    }
+    if(v!==null){if(el.type==="checkbox")el.checked=(v==="true");else el.value=v;}
   });
 }
 function clearData(){
@@ -180,15 +199,14 @@ document.getElementById("save").onclick=saveData;
 document.getElementById("clear").onclick=clearData;
 loadData();
 
-// 📊 完成率
+// 📊 完成率統計
 function updateProgress(){
-  const now=new Date();
-  let total=0,done=0;
+  const now=new Date();let total=0,done=0;
   for(let i=0;i<7;i++){
     const d=new Date(now);d.setDate(now.getDate()-i);
-    const key=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+    const k=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
     for(let i2=0;i2<15;i2++){
-      const state=localStorage.getItem(key+"_c"+i2);
+      const state=localStorage.getItem(k+"_c"+i2);
       if(state!==null){ total++; if(state==="true")done++; }
     }
   }
@@ -197,10 +215,28 @@ function updateProgress(){
   document.getElementById("pfill").style.background=per<50?"#ff4d4d":per<80?"#ffc107":"var(--accent)";
   document.getElementById("plabel").innerText=per+"%";
 }
-document.querySelectorAll("input[type='checkbox']").forEach(c=>c.onchange=updateProgress);
+document.querySelectorAll("input[type=checkbox]").forEach(c=>c.onchange=updateProgress);
 window.addEventListener("DOMContentLoaded",updateProgress);
 
-// 📤 匯出 CSV
+// ⏱️ 計時器
+let timer=null,timeLeft=0;
+const timerBox=document.getElementById("timerBox"),timerDisplay=document.getElementById("timerDisplay");
+function fmt(sec){const m=Math.floor(sec/60).toString().padStart(2,"0"),s=(sec%60).toString().padStart(2,"0");return `${m}:${s}`;}
+document.getElementById("startTimer").onclick=()=>{
+  let mins=prompt("請輸入倒數分鐘：","25");mins=parseInt(mins);
+  if(isNaN(mins)||mins<=0)return;
+  timeLeft=mins*60;timerBox.style.display="block";renderTimer();
+  toast("⏱ 開始倒數 "+mins+" 分鐘");
+  clearInterval(timer);
+  timer=setInterval(()=>{
+    timeLeft--;renderTimer();
+    if(timeLeft<=0){clearInterval(timer);toast("⌛ 時間到，已自動儲存！");saveData();timerBox.style.display="none";}
+  },1000);
+};
+document.getElementById("stopTimer").onclick=()=>{clearInterval(timer);timerBox.style.display="none";toast("⏹ 計時中止");};
+function renderTimer(){timerDisplay.textContent=fmt(timeLeft);}
+
+// 📤 匯出報告
 document.getElementById("export").onclick=()=>{
   let csv="日期,時間,學習內容,完成\n";
   for(let i=0;i<7;i++){
@@ -220,41 +256,25 @@ document.getElementById("export").onclick=()=>{
   toast("📤 已匯出報告！");
 };
 
-// ⏱️ 倒數計時器
-let timer=null,timeLeft=0;
-const timerBox=document.getElementById("timerBox");
-const timerDisplay=document.getElementById("timerDisplay");
-function format(sec){
-  const m=Math.floor(sec/60).toString().padStart(2,"0");
-  const s=(sec%60).toString().padStart(2,"0");
-  return `${m}:${s}`;
+// 🧾 歷史記錄檢視
+function loadHistory(){
+  const box=document.getElementById("historyBox");
+  const all=JSON.parse(localStorage.getItem("studyHistory")||"{}");
+  const keys=Object.keys(all).sort((a,b)=>new Date(b)-new Date(a));
+  if(keys.length===0){box.innerText="尚無紀錄";return;}
+  let html="";
+  keys.forEach(k=>{
+    const h=all[k];
+    html+=`<div>📅 ${h.date} ｜ 主科：${h.main} ｜ 副科：${h.sub} ｜ ✅ 完成時段：${h.checked||0}</div>`;
+  });
+  box.innerHTML=html;
 }
-document.getElementById("startTimer").onclick=()=>{
-  let mins=prompt("請輸入倒數分鐘：","25");
-  mins=parseInt(mins);
-  if(isNaN(mins)||mins<=0)return;
-  timeLeft=mins*60;
-  timerBox.style.display="block";
-  renderTimer();
-  toast("⏱ 開始倒數 "+mins+" 分鐘");
-  clearInterval(timer);
-  timer=setInterval(()=>{
-    timeLeft--;
-    renderTimer();
-    if(timeLeft<=0){
-      clearInterval(timer);
-      toast("⌛ 時間到，已自動儲存！");
-      saveData();
-      timerBox.style.display="none";
-    }
-  },1000);
-};
-document.getElementById("stopTimer").onclick=()=>{
-  clearInterval(timer);
-  timerBox.style.display="none";
-  toast("⏹ 計時中止");
-};
-function renderTimer(){timerDisplay.textContent=format(timeLeft);}
+function toggleHistory(){
+  const box=document.getElementById("historyBox");
+  box.style.display=(box.style.display==="none")?"block":"none";
+  if(box.style.display==="block")loadHistory();
+}
+loadHistory();
 </script>
 </body>
 </html>
