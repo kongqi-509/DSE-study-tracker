@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🧩 LocalStorage Debug</title>
+<style>
+body {
+  font-family: "Noto Sans TC", sans-serif;
+  background:#f8f9fa;
+  padding:20px;
+  color:#222;
+}
+h1 {
+  color:#007bff;
+  text-align:center;
+}
+#result {
+  margin-top:20px;
+  padding:15px;
+  border-radius:8px;
+  background:#fff;
+  box-shadow:0 2px 5px rgba(0,0,0,0.1);
+}
+.pass { border-left:8px solid #28a745; }
+.fail { border-left:8px solid #dc3545; }
+pre {
+  background:#f0f0f0;
+  padding:10px;
+  border-radius:4px;
+  overflow:auto;
+}
+button{
+  margin-top:10px;
+  padding:6px 10px;
+  border:1px solid #ccc;
+  border-radius:5px;
+  background:white;
+}
+</style>
+</head>
+<body>
+<h1>🧩 LocalStorage Debug 工具</h1>
+
+<div id="result">檢測中...</div>
+
+<script>
+(function(){
+  const res = document.getElementById("result");
+  const key = "todaySuggestion";
+  const todayStr = new Date().toLocaleDateString("zh-HK");
+  const data = localStorage.getItem(key);
+  
+  if(data){
+    let json;
+    try{ json = JSON.parse(data); }catch(e){ json = null; }
+    const sameToday = json && json.date === todayStr;
+    let html = `<h2>結果：✅ 可讀到 localStorage</h2>`;
+    html += `<p><b>日期比對：</b> ${sameToday ? "✔ 今日資料" : "⚠ 不是今日資料"}</p>`;
+    html += `<p><b>內容：</b></p><pre>${data}</pre>`;
+    res.className = "pass";
+    res.innerHTML = html;
+  } else {
+    res.className = "fail";
+    res.innerHTML = `<h2>結果：❌ 讀不到 localStorage 資料</h2>
+    <p>請先開啟 <code>plan.html</code> 同步資料，或確認 <code>index.html</code>、<code>plan.html</code> 是否在同資料夾。</p>
+    <button onclick="window.open('plan.html','_blank')">開啟 plan.html</button>`;
+  }
+})();
+</script>
+</body>
+</html>
