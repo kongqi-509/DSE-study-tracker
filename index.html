@@ -275,6 +275,10 @@ function toggleHistory(){
   if(box.style.display==="block")loadHistory();
 }
 loadHistory();
+
+window.addEventListener("storage", e => {
+  if (e.key === "todaySuggestion") location.reload();
+});
 </script>
 </body>
 </html>
