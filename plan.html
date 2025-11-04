@@ -205,6 +205,19 @@ function drawPie(data){
 }
 function resize(){const c=document.getElementById("pieChart");c.width=c.clientWidth;c.height=280;drawPie(perc);}
 window.addEventListener('resize',resize);resize();
+
+
+const todayStr = new Date().toLocaleDateString("zh-HK");
+
+// 寫入 localStorage，供 index.html 自動讀取
+localStorage.setItem("todaySuggestion", JSON.stringify({
+  date: todayStr,
+  main: mainSubject,
+  sub: subSubject
+}));
+
+console.log("✅ 今日建議已同步至學習打卡頁：", mainSubject, subSubject);
+
 </script>
 </body>
 </html>
