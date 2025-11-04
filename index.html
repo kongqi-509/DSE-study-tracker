@@ -2,169 +2,282 @@
 <html lang="zh-HK">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>📘 調查溫習時間 </title>
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>DSE 學習打卡系統</title>
 <style>
-body{
-  font-family:"Noto Sans TC",sans-serif;
-  background:#f4f6f8;
-  margin:0;
-  padding:20px;
-  color:#222;
+:root {
+  --primary:#0052cc;
+  --accent:#4caf50;
+  --bg:#f7faff;
+  --text:#222;
+  --panel:#fff;
 }
-h1{text-align:center;color:#007bff;}
-.card{
-  background:#fff;
-  margin:20px auto;
-  padding:20px;
-  border-radius:8px;
-  box-shadow:0 3px 8px rgba(0,0,0,0.1);
-  max-width:700px;
+@media (prefers-color-scheme:dark){
+  :root{
+    --primary:#4a90e2;
+    --accent:#00cc66;
+    --bg:#1e1e1e;
+    --text:#f0f0f0;
+    --panel:#2a2a2a;
+  }
 }
-table{
-  width:100%;
-  border-collapse:collapse;
-  margin-top:10px;
-}
-th,td{
-  padding:8px;
-  text-align:center;
-  border-bottom:1px solid #eee;
-}
-th{background:#f0f3f6;}
-button{
-  background:#007bff;color:#fff;border:none;border-radius:6px;
-  padding:10px 15px;font-size:1em;margin-top:10px;
-}
-button:hover{background:#0056b3;cursor:pointer;}
-select{padding:6px;border-radius:6px;border:1px solid #ccc;}
-canvas{max-width:100%;margin-top:20px;}
-#msg{margin-top:15px;padding:10px;border-radius:6px;text-align:center;font-weight:bold;}
-.success{background:#e8ffea;color:#1a7f37;border:1px solid #1a7f37;}
-.error{background:#ffecec;color:#b71c1c;border:1px solid #b71c1c;}
-small{color:#666;}
+body{font-family:"Noto Sans TC",sans-serif;background:var(--bg);color:var(--text);margin:0;}
+header{background:var(--primary);color:white;text-align:center;padding:1rem;}
+#clock{font-size:1.3rem;font-weight:bold;}
+main{background:var(--panel);max-width:750px;margin:1rem auto;border-radius:12px;padding:1rem;box-shadow:0 0 8px rgba(0,0,0,0.15);}
+h2{border-left:6px solid var(--primary);padding-left:6px;font-size:1rem;}
+#suggestion{background:#e8f0ff;padding:0.6rem;border-radius:8px;margin-bottom:1rem;}
+table{width:100%;border-collapse:collapse;}
+th,td{border:1px solid #ccc;padding:0.5rem;text-align:center;}
+th{background:var(--primary);color:white;}
+td.school{background:#f0f0f0;color:#777;}
+.subject-input{width:100%;border:none;border-bottom:1px solid #ccc;background:transparent;text-align:center;color:var(--text);}
+input[type=checkbox]{transform:scale(1.2);}
+.buttons{text-align:center;margin:1rem 0;}
+button{border:none;border-radius:6px;padding:0.6rem 1rem;margin:0.3rem;font-size:0.9rem;cursor:pointer;color:white;}
+button.save{background:var(--primary);}
+button.clear{background:#666;}
+button.export{background:var(--accent);}
+button.timer{background:#f39c12;}
+button.plan{background:#2e8b57;}
+button.plan:hover{background:#3da96a;}
+button.history{background:#7979ff;}
+.progress-bar{width:100%;height:16px;background:#ddd;border-radius:8px;border:1px solid #bbb;overflow:hidden;}
+.progress-fill{height:100%;width:0;background:var(--accent);min-width:4px;transition:width 0.4s ease;}
+.progress-label{text-align:right;font-size:0.85rem;margin-top:0.3rem;}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--primary);color:white;padding:0.6rem 1rem;border-radius:6px;opacity:0;transition:opacity .5s;z-index:999;}
+.toast.show{opacity:1;}
+footer{text-align:center;font-size:0.8rem;color:#888;margin:1rem 0;}
+@media(max-width:600px){table,th,td{font-size:0.8rem;}}
+#timerBox{display:none;text-align:center;margin-top:0.5rem;}
+#timerDisplay{font-size:1.2rem;font-weight:bold;color:var(--primary);}
+#historyBox{background:#f3f6ff;border-radius:8px;padding:0.6rem;margin-top:0.6rem;max-height:150px;overflow-y:auto;font-size:0.9rem;}
 </style>
 </head>
 <body>
+<header>
+  <h1>📚 DSE 學習打卡系統</h1>
+  <div id="date"></div>
+  <div id="clock">--:--:--</div>
+</header>
 
-<h1>🧠 調整學習計劃 </h1>
+<main>
+  <div style="text-align:center;margin:0.5rem 0 1rem 0;">
+    <button class="plan" onclick="window.location.href='plan.html'">📊 查看一週學習計劃</button>
+  </div>
 
-<div class="card">
-  <h2>📘 輸入各科 Predicted Grade</h2>
-  <table id="gradeTable">
-    <thead><tr><th>科目</th><th>預測等級</th></tr></thead>
-    <tbody></tbody>
-  </table>
+  <h2>🧠 今日建議科目</h2>
+  <div id="suggestion">載入中...</div>
 
-  <button id="calcBtn">📊 計算建議溫習比重</button>
-  <canvas id="pieChart"></canvas>
-</div>
+  <h2>🗓️ 今日打卡</h2>
+  <table><thead><tr><th>時間</th><th>內容</th><th>完成</th></tr></thead><tbody id="scheduleBody"></tbody></table>
 
-<div class="card">
-  <h2>🎯 今日主副科設定</h2>
-  <p>📅 日期：<span id="todayDate"></span></p>
+  <div class="buttons">
+    <button class="save" id="save">💾 儲存今日紀錄</button>
+    <button class="clear" id="clear">🧹 清除</button>
+    <button class="export" id="export">📤 匯出本週報告</button>
+    <button class="timer" id="startTimer">⏱ 開啟計時器</button>
+    <button class="history" onclick="toggleHistory()">📅 查看歷史紀錄</button>
+  </div>
 
-  <label>主科：</label>
-  <select id="main"></select>
-  <label>副科：</label>
-  <select id="sub"></select>
-  <button id="saveBtn">💾 儲存今日建議</button>
-  <div id="msg"></div>
-  <small>完成後可到 <a href="index.html" target="_blank">index.html</a> 查看同步結果。</small>
-</div>
+  <div id="timerBox">
+    <div>倒數時間：<span id="timerDisplay">00:00</span></div>
+    <button class="clear" id="stopTimer">停止</button>
+  </div>
+
+  <h2>📊 本週完成率</h2>
+  <div class="progress-bar"><div class="progress-fill" id="pfill"></div></div>
+  <div class="progress-label" id="plabel">0%</div>
+
+  <div id="historyBox" style="display:none;">尚無紀錄</div>
+</main>
+
+<footer>© 2025-2026 DSE Study Tracker</footer>
+<div class="toast" id="toast">✅ 已儲存！</div>
 
 <script>
-// === 設定資料 ===
-const subjects = ["中文","英文","數學","生物","化學","物理","經濟","會計","ICT"];
-const gradeValue = { "5**":7,"5*":6,"5":5,"4":4,"3":3,"2":2,"1":1 };
-const todayStr = new Date().toLocaleDateString("zh-HK");
+// 🕒 時鐘
+function updateClock(){
+  const n=new Date();
+  document.getElementById("clock").innerText=n.toLocaleTimeString("zh-HK",{hour12:false});
+}
+setInterval(updateClock,1000);updateClock();
 
-// === 初始化表格 ===
-const tbody = document.querySelector("#gradeTable tbody");
-subjects.forEach(s=>{
-  const row=document.createElement("tr");
-  row.innerHTML=`
-    <td>${s}</td>
-    <td>
-      <select id="g_${s}">
-        <option value="">--選擇等級--</option>
-        ${Object.keys(gradeValue).map(g=>`<option>${g}</option>`).join("")}
-      </select>
-    </td>`;
-  tbody.appendChild(row);
+// 📅 日期 & localStorage key
+const today=new Date();
+const w="日一二三四五六"[today.getDay()];
+document.getElementById("date").innerText=
+ `${today.getFullYear()}年${today.getMonth()+1}月${today.getDate()}日（星期${w}）`;
+const keyPrefix=`${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,"0")}-${String(today.getDate()).padStart(2,"0")}`;
+
+// 🧠 與 plan.html 同步的今日建議科目
+function loadSuggestion(){
+  const sug=JSON.parse(localStorage.getItem("todaySuggestion")||"{}");
+  const sugDiv=document.getElementById("suggestion");
+  const todayStr=new Date().toLocaleDateString("zh-HK");
+  if(sug.date===todayStr && sug.main){
+    sugDiv.innerHTML=`💡 <b>主科：</b>${sug.main}<br>🧩 <b>副科：</b>${sug.sub}`;
+  }else{
+    sugDiv.innerText="📅 請先開啟「調整一週學習計劃」頁生成今日建議";
+  }
+}
+loadSuggestion();
+
+// 🗓️ 生成今日時段表
+const tbody=document.getElementById("scheduleBody");
+let schedule=[];
+if(today.getDay()>=1&&today.getDay()<=5){
+  schedule=[
+    {time:"08:00–16:30",school:true,label:"學校上課時間"},
+    {time:"17:00–18:00"},
+    {time:"18:00–19:30"},
+    {time:"19:30–21:00"},
+    {time:"21:00–22:30"}];
+}else{
+  schedule=[
+    {time:"09:00–10:30"},{time:"10:30–12:00"},
+    {time:"13:00–14:30"},{time:"14:30–16:00"},
+    {time:"16:00–17:30"},{time:"19:00–20:30"},
+    {time:"20:30–22:00"}];
+}
+let ids=[],idx=0;
+schedule.forEach(s=>{
+  const tr=document.createElement("tr");
+  if(s.school){
+    tr.innerHTML=`<td>${s.time}</td><td class="school">${s.label}</td><td>🏫</td>`;
+  }else{
+    const sid="s"+idx,cid="c"+idx;
+    ids.push(sid,cid);
+    tr.innerHTML=`<td>${s.time}</td><td><input id="${sid}" class="subject-input" placeholder="學習內容"></td><td><input type="checkbox" id="${cid}"></td>`;
+    idx++;
+  }
+  tbody.appendChild(tr);
 });
 
-// === 主/副科下拉 ===
-const mainSel=document.getElementById("main");
-const subSel=document.getElementById("sub");
-subjects.forEach(s=>{
-  const o1=document.createElement("option");o1.textContent=s;mainSel.appendChild(o1);
-  const o2=document.createElement("option");o2.textContent=s;subSel.appendChild(o2);
-});
-document.getElementById("todayDate").textContent=todayStr;
-
-// === 根據 Predicted Grade 計算反比溫習比重 ===
-function calcWeights(){
-  let scores={};
-  subjects.forEach(s=>{
-    const g=document.getElementById("g_"+s).value;
-    const val=gradeValue[g]||0;
-    scores[s]=val? (8-val) : 0; // 反比 (成績低 → 加大溫習比例)
-  });
-  return scores;
+// 🔔 Toast
+function toast(msg){
+  const t=document.getElementById("toast");
+  t.innerText=msg;t.classList.add("show");
+  setTimeout(()=>t.classList.remove("show"),2000);
 }
 
-// === 繪圖 ===
-let chart;
-function drawChart(weights){
-  const data=Object.values(weights);
-  const labels=Object.keys(weights);
-  const ctx=document.getElementById("pieChart").getContext("2d");
-  if(chart) chart.destroy();
-  chart=new Chart(ctx,{
-    type:"pie",
-    data:{
-      labels:labels,
-      datasets:[{
-        data:data,
-        backgroundColor:[
-          "#FF6384","#36A2EB","#FFCE56","#4BC0C0","#9966FF",
-          "#FF9F40","#8BC34A","#E91E63","#9C27B0","#00BCD4"
-        ]
-      }]
-    },
-    options:{
-      plugins:{
-        legend:{position:"right"},
-        title:{display:true,text:"建議溫習時間分配（成績低→多時間）"}
-      }
+// 💾 保存今日資料 + 歷史紀錄
+function saveData(){
+  const record=[];
+  ids.forEach(id=>{
+    const el=document.getElementById(id);
+    if(!el)return;
+    if(el.type==="checkbox"){
+      localStorage.setItem(keyPrefix+"_"+id,el.checked);
+      if(id.startsWith("c") && el.checked)record.push(id);
+    }else{
+      localStorage.setItem(keyPrefix+"_"+id,el.value);
     }
   });
+  const sug=JSON.parse(localStorage.getItem("todaySuggestion")||"{}");
+  const allHist=JSON.parse(localStorage.getItem("studyHistory")||"{}");
+  allHist[keyPrefix]={date:keyPrefix,main:sug.main||"未定",sub:sug.sub||"未定",checked:record.length};
+  localStorage.setItem("studyHistory",JSON.stringify(allHist));
+  toast("✅ 今日紀錄已儲存！");
+  updateProgress();
+  loadHistory();
 }
-
-// === 按鈕事件 ===
-document.getElementById("calcBtn").addEventListener("click",()=>{
-  const weights=calcWeights();
-  drawChart(weights);
-  alert("📊 已根據成績計算溫習時間分配！");
-});
-
-document.getElementById("saveBtn").addEventListener("click",()=>{
-  const main=mainSel.value;
-  const sub=subSel.value;
-  const msgDiv=document.getElementById("msg");
-  if(!main||!sub){
-    msgDiv.className="error";
-    msgDiv.textContent="⚠️ 請先選主科與副科！";
-    return;
+function loadData(){
+  ids.forEach(id=>{
+    const el=document.getElementById(id);
+    const v=localStorage.getItem(keyPrefix+"_"+id);
+    if(v!==null){if(el.type==="checkbox")el.checked=(v==="true");else el.value=v;}
+  });
+}
+function clearData(){
+  if(confirm("確定清除今日紀錄？")){
+    ids.forEach(id=>localStorage.removeItem(keyPrefix+"_"+id));
+    location.reload();
   }
-  const weights=calcWeights();
-  localStorage.setItem("todaySuggestion",JSON.stringify({
-    date:todayStr, main, sub, weights
-  }));
-  msgDiv.className="success";
-  msgDiv.innerHTML=`✅ 已儲存今日建議！<br>主科：<b>${main}</b> | 副科：<b>${sub}</b>`;
+}
+document.getElementById("save").onclick=saveData;
+document.getElementById("clear").onclick=clearData;
+loadData();
+
+// 📊 完成率統計
+function updateProgress(){
+  const now=new Date();let total=0,done=0;
+  for(let i=0;i<7;i++){
+    const d=new Date(now);d.setDate(now.getDate()-i);
+    const k=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+    for(let i2=0;i2<15;i2++){
+      const state=localStorage.getItem(k+"_c"+i2);
+      if(state!==null){ total++; if(state==="true")done++; }
+    }
+  }
+  const per=total?Math.round(done/total*100):0;
+  document.getElementById("pfill").style.width=per+"%";
+  document.getElementById("pfill").style.background=per<50?"#ff4d4d":per<80?"#ffc107":"var(--accent)";
+  document.getElementById("plabel").innerText=per+"%";
+}
+document.querySelectorAll("input[type=checkbox]").forEach(c=>c.onchange=updateProgress);
+window.addEventListener("DOMContentLoaded",updateProgress);
+
+// ⏱️ 計時器
+let timer=null,timeLeft=0;
+const timerBox=document.getElementById("timerBox"),timerDisplay=document.getElementById("timerDisplay");
+function fmt(sec){const m=Math.floor(sec/60).toString().padStart(2,"0"),s=(sec%60).toString().padStart(2,"0");return `${m}:${s}`;}
+document.getElementById("startTimer").onclick=()=>{
+  let mins=prompt("請輸入倒數分鐘：","25");mins=parseInt(mins);
+  if(isNaN(mins)||mins<=0)return;
+  timeLeft=mins*60;timerBox.style.display="block";renderTimer();
+  toast("⏱ 開始倒數 "+mins+" 分鐘");
+  clearInterval(timer);
+  timer=setInterval(()=>{
+    timeLeft--;renderTimer();
+    if(timeLeft<=0){clearInterval(timer);toast("⌛ 時間到，已自動儲存！");saveData();timerBox.style.display="none";}
+  },1000);
+};
+document.getElementById("stopTimer").onclick=()=>{clearInterval(timer);timerBox.style.display="none";toast("⏹ 計時中止");};
+function renderTimer(){timerDisplay.textContent=fmt(timeLeft);}
+
+// 📤 匯出報告
+document.getElementById("export").onclick=()=>{
+  let csv="日期,時間,學習內容,完成\n";
+  for(let i=0;i<7;i++){
+    const d=new Date();d.setDate(d.getDate()-i);
+    const k=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+    for(let j=0;j<15;j++){
+      const sub=localStorage.getItem(k+"_s"+j)||"";
+      const done=localStorage.getItem(k+"_c"+j)==="true"?"✔":"";
+      if(sub||done)csv+=`${k},時段${j+1},${sub},${done}\n`;
+    }
+  }
+  const blob=new Blob(["\uFEFF"+csv],{type:"text/csv;charset=utf-8"});
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(blob);
+  a.download="DSE-Week-Report.csv";
+  a.click();
+  toast("📤 已匯出報告！");
+};
+
+// 🧾 歷史記錄檢視
+function loadHistory(){
+  const box=document.getElementById("historyBox");
+  const all=JSON.parse(localStorage.getItem("studyHistory")||"{}");
+  const keys=Object.keys(all).sort((a,b)=>new Date(b)-new Date(a));
+  if(keys.length===0){box.innerText="尚無紀錄";return;}
+  let html="";
+  keys.forEach(k=>{
+    const h=all[k];
+    html+=`<div>📅 ${h.date} ｜ 主科：${h.main} ｜ 副科：${h.sub} ｜ ✅ 完成時段：${h.checked||0}</div>`;
+  });
+  box.innerHTML=html;
+}
+function toggleHistory(){
+  const box=document.getElementById("historyBox");
+  box.style.display=(box.style.display==="none")?"block":"none";
+  if(box.style.display==="block")loadHistory();
+}
+loadHistory();
+
+window.addEventListener("storage", e => {
+  if (e.key === "todaySuggestion") location.reload();
 });
 </script>
 </body>
